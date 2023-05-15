@@ -16,9 +16,9 @@ class Curriculum_01 {
         add_action('acf/save_post', [$this, 'sync_post_title']);    // カスタム投稿タイプ（福利厚生書籍）で新規登録した際に発火するイベント
 
         // 一覧
+        add_filter('post_class', [$this, 'filter_class_name'], 10, 3);
         add_filter('manage_book-rental_posts_columns', [$this, 'add_book_rental_column']);
         add_filter('manage_edit-book-rental_sortable_columns', [$this, 'posts_sortable_columns']);
-        add_filter('manage-book-rental_pages_custom_column', [$this, 'add_table_class_name'], 10, 2);
         add_action('manage_book-rental_posts_custom_column', [$this, 'set_average_book_rental_column'], 10, 2);
 
         // ウィジェットを追加
@@ -123,7 +123,7 @@ class Curriculum_01 {
             'made' => esc_attr($book_meta['made'][0]),
             'publisher' => esc_attr($book_meta['publisher'][0]),
             'average' => $book_point_rate ? $book_point_rate[0]->avg : '-',
-            'book_image' => esc_attr($book_meta['book_image'][0]),
+            'book_image' => wp_get_attachment_image($book_meta['book_image'][0]),
             default => __(''),
         };
 
@@ -188,32 +188,7 @@ class Curriculum_01 {
 
     public function change_background_rental_list()
     {
-
-        //
-        $post_data = get_posts([
-            'post_type' => 'book-rental',
-            'posts_per_page' => -1,
-            'meta_query' => [
-                'relation' => 'AND',
-                [
-                    'key' => 'returned-at',
-                    'value' => date("Ymd",strtotime("-24 hour")),
-                    'compare' => '<',
-                ],
-            ]
-        ]);
-
-        $css = '';
-
-        //
-        foreach ($post_data as $item) {
-            $css .= "#post-{$item->ID} { background-color: var(--ac-color-error-alt); }\n";
-        }
-
-        if ($css !== '') {
-            echo '<style>' . $css . '</style>';
-        }
-
+        echo '<style>table tbody tr.warning-return-date { background-color: var(--ac-color-error-alt) !important; }</style>';
     }
 
     public function add_posts_column_orderby_wpp_views( $vars )
@@ -222,9 +197,17 @@ class Curriculum_01 {
     }
 
 
-    public function add_table_class_name($column_name, $post_id)
+    public function filter_class_name($classes, $css_class, $post_id)
     {
-        echo 'test-class';
+        // post_idから返却日を取得
+        $return_date = get_post_meta($post_id, 'returned-at', true);
+
+        // 24時間以内に返却期限を迎えるか判定
+        if ($return_date < date("Ymd",strtotime("-24 hour"))) {
+            $classes[] = 'warning-return-date';
+        }
+
+        return $classes;
     }
 
 }
